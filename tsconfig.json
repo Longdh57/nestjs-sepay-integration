@@ -1,4 +1,10 @@
 {
+  "ts-node": {
+    "esm": false,
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  },
   "compilerOptions": {
     "module": "commonjs",
     "declaration": true,
