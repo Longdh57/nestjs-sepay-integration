@@ -1,6 +1,6 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../../common/dto/pagination-response.dto';
 import { SingleResponseDto } from '../../common/dto/single-response.dto';
 import { CreatePaymentOrderDto } from './dto/create-payment-order.dto';
@@ -76,5 +76,56 @@ export class PaymentOrderService {
       .getManyAndCount();
 
     return new PaginatedResponseDto(data, total, page, limit);
+  }
+
+  /**
+   * Finds a payment order by orderCode.
+   * Throws NotFoundException if not found.
+   * Used internally by other modules (e.g. SepayModule).
+   */
+  async findByOrderCode(orderCode: string): Promise<PaymentOrder> {
+    const order = await this.paymentOrderRepository.findOne({
+      where: { orderCode },
+    });
+
+    if (!order) {
+      throw new NotFoundException(
+        `Payment order with orderCode "${orderCode}" not found`,
+      );
+    }
+
+    return order;
+  }
+
+  /**
+   * Updates the status of a payment order by ID.
+   * Used internally for status transitions triggered by payment gateway events.
+   */
+  async updateStatus(id: number, status: PaymentOrderStatus): Promise<void> {
+    await this.paymentOrderRepository.update({ id }, { status });
+  }
+
+  /**
+   * Atomically marks an order as PAID only if it is currently CREATED or PENDING.
+   * Returns true if the row was updated, false if the order had already transitioned.
+   */
+  async markAsPaid(
+    id: number,
+    details: { provider: string; providerOrderId: string; paidAt: Date },
+  ): Promise<boolean> {
+    const result = await this.paymentOrderRepository.update(
+      {
+        id,
+        status: In([PaymentOrderStatus.CREATED, PaymentOrderStatus.PENDING]),
+      },
+      {
+        status: PaymentOrderStatus.PAID,
+        provider: details.provider,
+        providerOrderId: details.providerOrderId,
+        paidAt: details.paidAt,
+      },
+    );
+
+    return (result.affected ?? 0) > 0;
   }
 }

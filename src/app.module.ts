@@ -3,13 +3,15 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import databaseConfig from './config/database.config';
+import sepayConfig from './config/sepay.config';
 import { PaymentOrderModule } from './modules/payment-order/payment-order.module';
+import { SepayModule } from './modules/sepay/sepay.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig],
+      load: [databaseConfig, sepayConfig],
       envFilePath: '.env',
     }),
     TypeOrmModule.forRootAsync({
@@ -18,6 +20,7 @@ import { PaymentOrderModule } from './modules/payment-order/payment-order.module
         configService.get<TypeOrmModuleOptions>('database'),
     }),
     PaymentOrderModule,
+    SepayModule,
   ],
 })
 export class AppModule {}
