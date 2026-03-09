@@ -1,57 +1,149 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
-export class SepayIpnPayloadDto {
-  @ApiProperty({ example: 99001 })
-  @IsNumber()
-  id: number;
-
-  @ApiProperty({ example: 'Vietcombank' })
+export class SepayIpnOrderDto {
+  @ApiProperty({ example: 'e2c195be-c721-47eb-b323-99ab24e52d85' })
   @IsString()
-  gateway: string;
+  id: string;
 
-  @ApiProperty({ example: '2026-03-09 15:30:00' })
+  @ApiProperty({ example: 'NQD-68DA43D73C1A5' })
   @IsString()
-  transactionDate: string;
+  order_id: string;
 
-  @ApiProperty({ example: '1234567890' })
+  @ApiProperty({ example: 'CAPTURED' })
   @IsString()
-  accountNumber: string;
+  order_status: string;
 
-  @ApiPropertyOptional({ example: 'IPN_TEST_001', nullable: true })
+  @ApiProperty({ example: 'VND' })
+  @IsString()
+  order_currency: string;
+
+  @ApiProperty({ example: '100000.00' })
+  @IsString()
+  order_amount: string;
+
+  @ApiProperty({ example: 'INV-1759134677' })
+  @IsString()
+  order_invoice_number: string;
+
+  @ApiPropertyOptional({ example: [] })
+  @IsOptional()
+  @IsArray()
+  custom_data?: any[];
+
+  @ApiPropertyOptional({ example: 'Mozilla/5.0' })
   @IsOptional()
   @IsString()
-  code: string | null;
+  user_agent?: string | null;
 
-  @ApiPropertyOptional({ example: 'IPN_TEST_001 thanh toan', nullable: true })
+  @ApiPropertyOptional({ example: '14.186.39.212' })
   @IsOptional()
   @IsString()
-  content: string | null;
+  ip_address?: string | null;
 
-  @ApiProperty({ example: 'in', enum: ['in', 'out'] })
+  @ApiPropertyOptional({ example: 'Test payment' })
+  @IsOptional()
   @IsString()
-  transferType: string;
+  order_description?: string | null;
+}
 
-  @ApiProperty({ example: 100000 })
-  @IsNumber()
-  transferAmount: number;
+export class SepayIpnTransactionDto {
+  @ApiProperty({ example: '384c66dd-41e6-4316-a544-b4141682595c' })
+  @IsString()
+  id: string;
 
-  @ApiProperty({ example: 500000 })
-  @IsNumber()
-  accumulated: number;
+  @ApiProperty({ example: 'BANK_TRANSFER' })
+  @IsString()
+  payment_method: string;
+
+  @ApiProperty({ example: '68da43da2d9de' })
+  @IsString()
+  transaction_id: string;
+
+  @ApiProperty({ example: 'PAYMENT' })
+  @IsString()
+  transaction_type: string;
+
+  @ApiProperty({ example: '2025-09-29 15:31:22' })
+  @IsString()
+  transaction_date: string;
+
+  @ApiProperty({ example: 'APPROVED' })
+  @IsString()
+  transaction_status: string;
+
+  @ApiProperty({ example: '100000' })
+  @IsString()
+  transaction_amount: string;
+
+  @ApiProperty({ example: 'VND' })
+  @IsString()
+  transaction_currency: string;
+
+  @ApiPropertyOptional({ example: 'AUTHENTICATION_SUCCESSFUL' })
+  @IsOptional()
+  @IsString()
+  authentication_status?: string | null;
 
   @ApiPropertyOptional({ example: null, nullable: true })
   @IsOptional()
   @IsString()
-  subAccount: string | null;
+  card_number?: string | null;
 
-  @ApiPropertyOptional({ example: 'REF001', nullable: true })
+  @ApiPropertyOptional({ example: null, nullable: true })
   @IsOptional()
   @IsString()
-  referenceCode: string | null;
+  card_holder_name?: string | null;
 
-  @ApiPropertyOptional({ example: 'IPN_TEST_001 thanh toan', nullable: true })
+  @ApiPropertyOptional({ example: null, nullable: true })
   @IsOptional()
   @IsString()
-  description: string | null;
+  card_expiry?: string | null;
+
+  @ApiPropertyOptional({ example: null, nullable: true })
+  @IsOptional()
+  @IsString()
+  card_funding_method?: string | null;
+
+  @ApiPropertyOptional({ example: null, nullable: true })
+  @IsOptional()
+  @IsString()
+  card_brand?: string | null;
+}
+
+export class SepayIpnPayloadDto {
+  @ApiProperty({ example: 1759134682 })
+  @IsInt()
+  timestamp: number;
+
+  @ApiProperty({ example: 'ORDER_PAID' })
+  @IsString()
+  @IsNotEmpty()
+  notification_type: string;
+
+  @ApiProperty({ type: () => SepayIpnOrderDto })
+  @ValidateNested()
+  @Type(() => SepayIpnOrderDto)
+  order: SepayIpnOrderDto;
+
+  @ApiProperty({ type: () => SepayIpnTransactionDto })
+  @ValidateNested()
+  @Type(() => SepayIpnTransactionDto)
+  transaction: SepayIpnTransactionDto;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  customer?: any | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  agreement?: any | null;
 }

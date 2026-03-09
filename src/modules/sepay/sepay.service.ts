@@ -76,28 +76,25 @@ export class SepayService {
   }
 
   async processIpn(payload: SepayIpnPayloadDto): Promise<IpnResult> {
-    // Skip outgoing transfers
-    if (payload.transferType !== 'in') {
+    const invoiceNumber = payload.order.order_invoice_number;
+    const transactionId = payload.transaction.transaction_id;
+
+    // Only handle ORDER_PAID notifications
+    if (payload.notification_type !== 'ORDER_PAID') {
       this.logger.log(
-        `Skipping IPN id=${payload.id}: transferType="${payload.transferType}"`,
+        `Skipping IPN transaction="${transactionId}": notification_type="${payload.notification_type}"`,
       );
       return { success: true };
     }
 
-    // Skip if no order code
-    if (!payload.code) {
-      this.logger.warn(`Skipping IPN id=${payload.id}: code is null/empty`);
-      return { success: true };
-    }
-
-    // Find the order
+    // Find the order by invoice number (order_invoice_number maps to orderCode)
     let order;
     try {
-      order = await this.paymentOrderService.findByOrderCode(payload.code);
+      order = await this.paymentOrderService.findByOrderCode(invoiceNumber);
     } catch (error) {
       if (error instanceof NotFoundException) {
         this.logger.warn(
-          `Skipping IPN id=${payload.id}: order "${payload.code}" not found`,
+          `Skipping IPN transaction="${transactionId}": order with invoice "${invoiceNumber}" not found`,
         );
         return { success: true };
       }
@@ -107,7 +104,7 @@ export class SepayService {
     // Skip if already paid (idempotent)
     if (order.status === PaymentOrderStatus.PAID) {
       this.logger.log(
-        `Skipping IPN id=${payload.id}: order "${payload.code}" already PAID`,
+        `Skipping IPN transaction="${transactionId}": order "${invoiceNumber}" already PAID`,
       );
       return { success: true };
     }
@@ -118,30 +115,30 @@ export class SepayService {
       order.status === PaymentOrderStatus.CANCELED
     ) {
       this.logger.warn(
-        `Skipping IPN id=${payload.id}: order "${payload.code}" is ${order.status}`,
+        `Skipping IPN transaction="${transactionId}": order "${invoiceNumber}" is ${order.status}`,
       );
       return { success: true };
     }
 
     // Parse transaction date safely
-    const paidAt = payload.transactionDate
-      ? new Date(payload.transactionDate)
+    const paidAt = payload.transaction.transaction_date
+      ? new Date(payload.transaction.transaction_date)
       : new Date();
     const safePaidAt = isNaN(paidAt.getTime()) ? new Date() : paidAt;
 
     const updated = await this.paymentOrderService.markAsPaid(order.id, {
       provider: 'sepay',
-      providerOrderId: String(payload.id),
+      providerOrderId: payload.transaction.id,
       paidAt: safePaidAt,
     });
 
     if (updated) {
       this.logger.log(
-        `Order "${payload.code}" marked as PAID via IPN id=${payload.id}`,
+        `Order "${invoiceNumber}" marked as PAID via IPN transaction="${transactionId}"`,
       );
     } else {
       this.logger.warn(
-        `Order "${payload.code}" was not updated (concurrent transition) for IPN id=${payload.id}`,
+        `Order "${invoiceNumber}" was not updated (concurrent transition) for IPN transaction="${transactionId}"`,
       );
     }
 
